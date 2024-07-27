@@ -2,7 +2,9 @@
   "app": "python3 app.py",
   "watch": {
     "include": [
-      "**"
+      "bedrock_agents/**",
+      "Dockerfile",
+      "app.py"
     ],
     "exclude": [
       "README.md",
@@ -10,7 +12,7 @@
       "requirements*.txt",
       "source.bat",
       "**/__init__.py",
-      "**/__pycache__",
+      "**/__pycache__/*",
       "tests"
     ]
   },

@@ -1,0 +1,11 @@
+.venv
+cdk.out
+notebooks
+tests
+.github
+.vscode
+__pycache__
+.sonar
+.coverage
+coverage.xml
+.env

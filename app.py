@@ -1,28 +1,33 @@
 #!/usr/bin/env python3
-import os
 
-import aws_cdk as cdk
+import aws_cdk as core
 
 from bedrock_agents.bedrock_agents_stack import BedrockAgentsStack
+from bedrock_agents.bedrock_data_stack import BedrockDataStack
+from bedrock_agents.bedrock_app_stack import BedrockAppStack
 
 
-app = cdk.App()
-BedrockAgentsStack(app, "BedrockAgentsStack",
-    # If you don't specify 'env', this stack will be environment-agnostic.
-    # Account/Region-dependent features and context lookups will not work,
-    # but a single synthesized template can be deployed anywhere.
+env = core.Environment(account="603006933259", region="us-east-1")
+app = core.App()
+data_stack = BedrockDataStack(app, "BedrockDataStack-testing", description="Bedrock Test Data", env=env)
+agent_stack = BedrockAgentsStack(
+    app,
+    "BedrockAgentsStack-testing",
+    description="Bedrock Agents",
+    secret=data_stack.secret,
+    env=env,
+)
+app_stack = BedrockAppStack(
+    app,
+    "BedrockAppStack-testing",
+    description="Bedrock App",
+    br_agent_id=agent_stack.bedrock_agent.agent_id,
+    br_agent_alias_id=agent_stack.bedrock_agent.agent_alias_id,
+    env=env,
+)
 
-    # Uncomment the next line to specialize this stack for the AWS Account
-    # and Region that are implied by the current CLI configuration.
-
-    #env=cdk.Environment(account=os.getenv('CDK_DEFAULT_ACCOUNT'), region=os.getenv('CDK_DEFAULT_REGION')),
-
-    # Uncomment the next line if you know exactly what Account and Region you
-    # want to deploy the stack to. */
-
-    #env=cdk.Environment(account='123456789012', region='us-east-1'),
-
-    # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-    )
+# Force the dependency between the stacks
+agent_stack.add_dependency(data_stack)
+app_stack.add_dependency(data_stack)
 
 app.synth()
