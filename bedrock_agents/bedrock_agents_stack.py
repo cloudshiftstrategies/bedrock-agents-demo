@@ -2,13 +2,13 @@ import os
 import aws_cdk as core
 from aws_cdk import aws_bedrock as bedrock
 from aws_cdk import aws_s3 as s3
-from aws_cdk import aws_s3_deployment as s3_deployment
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_ecr_assets as ecr
 from constructs import Construct
 from bedrock_agents.constructs import pinecone_index as pi
 from bedrock_agents.constructs.bedrock_agent import BedrockAgent
+from bedrock_agents.constructs.bedrock_guardrail import BedrockGuardrail
 from bedrock_agents.constructs.bedrock_pinecone_knowledgebase import BedrockPineconeKnowledgeBase
 
 
@@ -23,21 +23,6 @@ class BedrockAgentsStack(core.Stack):
             name="BedrockAgentsKb",
             description="Bedrocks Agents Testing Knowledge Base",
             pinecone_secret=secret,
-        )
-
-        # Deploy the recipe pdfs to s3 bucket
-        s3_deployment.BucketDeployment(
-            self,
-            "RecipeDeployment",
-            sources=[
-                s3_deployment.Source.asset(
-                    "/Users/brianpeterson/dropbox/Recipes/",
-                    follow_symlinks=core.SymlinkFollowMode.ALWAYS,
-                )
-            ],
-            destination_bucket=knowledge_base.bucket,
-            exclude=[".DS_Store"],
-            memory_limit=1024,  # increase memory to avoid sigkill.9 errors on large uploads
         )
 
         code_dir = os.path.join(os.path.dirname(__file__), "..")  # root of this project
@@ -66,7 +51,7 @@ class BedrockAgentsStack(core.Stack):
             # Supported models https://docs.aws.amazon.com/bedrock/latest/userguide/agents-supported.html
             agent_model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         )
-        self.bedrock_agent.add_knwledge_base(
+        self.bedrock_agent.add_knowledge_base(
             bedrock.CfnAgent.AgentKnowledgeBaseProperty(
                 description="Knowledge base for the agent",
                 knowledge_base_id=knowledge_base.knowledge_base.attr_knowledge_base_id,
@@ -106,6 +91,22 @@ class BedrockAgentsStack(core.Stack):
                 ),
             )
         )
+
+        # Create a Guardrail to prevent PII data
+        guardrail = BedrockGuardrail(
+            self,
+            "Guardrail",
+            name="BedrockDemo",
+            description="Guardrail to prevent pii data",
+            sensitive_information_policy_config=bedrock.CfnGuardrail.SensitiveInformationPolicyConfigProperty(
+                # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-bedrock-guardrail-piientityconfig.html
+                pii_entities_config=[
+                    bedrock.CfnGuardrail.PiiEntityConfigProperty(action="ANONYMIZE", type="EMAIL"),  # Sanitize email
+                    bedrock.CfnGuardrail.PiiEntityConfigProperty(action="BLOCK", type="PASSWORD"),  # Block passwords
+                ],
+            ),
+        )
+        self.bedrock_agent.set_guardrail(guardrail)
 
         # This bucket will be used to upload code for the agent
         code_bucket = s3.Bucket(self, "CodeBucket", removal_policy=core.RemovalPolicy.DESTROY, auto_delete_objects=True)

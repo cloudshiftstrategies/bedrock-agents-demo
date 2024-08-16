@@ -5,6 +5,8 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import custom_resources as cr
 from constructs import Construct
 
+from bedrock_agents.constructs.bedrock_guardrail import BedrockGuardrail
+
 
 class BedrockAgent(Construct):
     def __init__(
@@ -89,7 +91,8 @@ class BedrockAgent(Construct):
         # Ensure agent is fully stabilized before updating the alias
         self.agent_alias.add_dependency(self.agent)
 
-    def add_knwledge_base(self, knowledge_base: bedrock.CfnAgent.AgentKnowledgeBaseProperty):
+    def add_knowledge_base(self, knowledge_base: bedrock.CfnAgent.AgentKnowledgeBaseProperty):
+        """Add a knowledge base to the agent"""
         kbs = self.agent.knowledge_bases or []
         kbs.append(knowledge_base)
         self.agent.knowledge_bases = kbs
@@ -104,6 +107,7 @@ class BedrockAgent(Construct):
         )
 
     def add_action_group(self, action_group: bedrock.CfnAgent.AgentActionGroupProperty):
+        """Add an action group to the agent"""
         ags = self.agent.action_groups or []
         ags.append(action_group)
         self.agent.action_groups = ags
@@ -118,3 +122,21 @@ class BedrockAgent(Construct):
                 principal="bedrock.amazonaws.com",
                 source_arn=self.agent.attr_agent_arn,
             )
+
+    def set_guardrail(self, bedrock_guardrail: BedrockGuardrail):
+        """Set the guardrail configuration for the agent"""
+
+        # Add the guardrail to the agent
+        self.agent.guardrail_configuration = bedrock_guardrail.agent_configuration
+
+        # Add permission to apply the guardrail
+        # https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-permissions.html#guardrails-permissions-invoke
+        self.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock:ApplyGuardrail"],
+                resources=[
+                    f"arn:aws:bedrock:{core.Stack.of(self).region}:{core.Stack.of(self).account}"
+                    f":guardrail/{bedrock_guardrail.guardrail.attr_guardrail_id}"
+                ],
+            )
+        )

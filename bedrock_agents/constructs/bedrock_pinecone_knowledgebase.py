@@ -1,7 +1,10 @@
+from textwrap import dedent
 import aws_cdk as core
 from aws_cdk import aws_bedrock as bedrock
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_s3_notifications as s3n
+from aws_cdk import aws_lambda as lambda_
 from bedrock_agents.constructs import pinecone_index as pi
 from constructs import Construct
 
@@ -56,8 +59,7 @@ class BedrockPineconeKnowledgeBase(Construct):
             ),
         )
 
-        # Create an S3 bucket to store the recipe pdfs
-        # TODO: Create a lamdba function to sync the s3 bucket with the knowledge base on changes
+        # Create an S3 bucket to store the kb articles
         self.bucket = s3.Bucket(
             self,
             "Bucket",
@@ -92,4 +94,54 @@ class BedrockPineconeKnowledgeBase(Construct):
                     ),
                 )
             ),
+        )
+        # Create a lambda function to start ingestion job when new data is added or deleted from the bucket
+        self.ingestion_fn = lambda_.Function(
+            self,
+            "IngestionFunction",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.handler",
+            code=lambda_.Code.from_inline(
+                dedent(
+                    """
+            import os, boto3, logging, json
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+            handler = logging.StreamHandler()
+            handler.setFormatter(logging.Formatter(json.dumps({
+                "timestamp": "%(asctime)s", "level": "%(levelname)s", "message": "%(message)s",
+                "logger": "%(name)s", "pathname": "%(pathname)s", "lineno": "%(lineno)d", "funcName": "%(funcName)s"
+            })))
+            logger.addHandler(handler)
+
+            def handler(event, context):
+                logger.info(json.dumps({"event": event}))
+                logger.info(f"Starting ingestion job, datasource:{os.getenv('DATASOURCE_ID')}, kb:{os.getenv('KB_ID')}")
+                result = boto3.client("bedrock-agent").start_ingestion_job(
+                    dataSourceId=os.getenv("DATASOURCE_ID"),
+                    knowledgeBaseId=os.getenv("KB_ID")
+                )
+                logger.info(json.dumps({"start_ingestion_job result": result}))
+            """
+                )
+            ),
+            environment={
+                "DATASOURCE_ID": self.data_source.attr_data_source_id,
+                "KB_ID": self.knowledge_base.attr_knowledge_base_id,
+            },
+        )
+        self.ingestion_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["bedrock:StartIngestionJob", "bedrock:AssociateThirdPartyKnowledgeBase"],
+                resources=[self.knowledge_base.attr_knowledge_base_arn]
+            )
+        )
+        self.bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(self.ingestion_fn),
+        )
+        self.bucket.add_event_notification(
+            s3.EventType.OBJECT_REMOVED,
+            s3n.LambdaDestination(self.ingestion_fn),
         )
