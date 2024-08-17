@@ -2577,8 +2577,8 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -2774,8 +2774,8 @@ pinecone-plugin-interface = ">=0.0.7,<0.0.8"
 tqdm = ">=4.64.1"
 typing-extensions = ">=3.7.4"
 urllib3 = [
-    {version = ">=1.26.5", markers = "python_version >= \"3.12\" and python_version < \"4.0\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.8\" and python_version < \"3.12\""},
+    {version = ">=1.26.5", markers = "python_version >= \"3.12\" and python_version < \"4.0\""},
 ]
 
 [package.extras]
@@ -2807,6 +2807,21 @@ files = [
 docs = ["furo (>=2023.9.10)", "proselint (>=0.13)", "sphinx (>=7.2.6)", "sphinx-autodoc-typehints (>=1.25.2)"]
 test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.4.3)", "pytest-cov (>=4.1)", "pytest-mock (>=3.12)"]
 type = ["mypy (>=1.8)"]
+
+[[package]]
+name = "plotly"
+version = "5.23.0"
+description = "An open-source, interactive data visualization library for Python"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "plotly-5.23.0-py3-none-any.whl", hash = "sha256:76cbe78f75eddc10c56f5a4ee3e7ccaade7c0a57465546f02098c0caed6c2d1a"},
+    {file = "plotly-5.23.0.tar.gz", hash = "sha256:89e57d003a116303a34de6700862391367dd564222ab71f8531df70279fc0193"},
+]
+
+[package.dependencies]
+packaging = "*"
+tenacity = ">=6.2.0"
 
 [[package]]
 name = "pluggy"
@@ -3021,8 +3036,8 @@ files = [
 annotated-types = ">=0.4.0"
 pydantic-core = "2.20.1"
 typing-extensions = [
-    {version = ">=4.12.2", markers = "python_version >= \"3.13\""},
     {version = ">=4.6.1", markers = "python_version < \"3.13\""},
+    {version = ">=4.12.2", markers = "python_version >= \"3.13\""},
 ]
 
 [package.extras]
@@ -4526,4 +4541,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "6113af15e8f1688d13d6a6cf484c440541ae93a6916b9cd65c20e633ccaf5e78"
+content-hash = "e7384fe17a337b011b2626780bfe05295f8361d573bd54bb8d7e26f6799cdd33"

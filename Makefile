@@ -2,16 +2,6 @@
 
 DIRS = lib
 
-docker-build:
-	docker build --platform linux/amd64 -t bedrock-agents .
-
-# Get a shell in the lambda container
-docker-shell: docker-build
-	docker run --rm --entrypoint sh -it bedrock-agents
-
-docker-run: docker-build
-	docker run --rm -p 9000:8080 -e DASH_DEBUG=True -e LOG_LEVE=DEBUG bedrock-agents
-
 test:
 	pytest --cov --cov-branch --cov-report=xml --cov-report=term-missing:skip-covered --junitxml=.sonar/xunit-result.xml
 
@@ -19,7 +9,7 @@ test-functions:
 	pytest --cov --cov-branch --cov-report=xml --cov-report=term-missing:skip-covered --junitxml=.sonar/xunit-result.xml tests/unit/functions
 
 test-watch-functions:
-	ptw bedrock_agents/functions/ tests/unit/functions -- tests/unit/functions --cov
+	ptw cdk/functions/ tests/unit/functions -- tests/unit/functions --cov
 
 test-snapshot-update:
 	pytest --snapshot-update

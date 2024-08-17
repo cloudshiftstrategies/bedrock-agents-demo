@@ -1,4 +1,4 @@
-from bedrock_agents.models.bedrock_lambda_types import (
+from cdk.models.models import (
     BedrockEvent,
     BedrockResponseEvent,
     FunctionResponseBody,

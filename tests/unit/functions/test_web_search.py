@@ -1,6 +1,6 @@
 from unittest import mock
 import json
-from bedrock_agents.functions import web_search
+from cdk.functions import web_search
 import pytest
 from tests.unit.mock_data import bedrock_event
 

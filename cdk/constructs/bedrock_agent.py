@@ -5,7 +5,7 @@ from aws_cdk import aws_iam as iam
 from aws_cdk import custom_resources as cr
 from constructs import Construct
 
-from bedrock_agents.constructs.bedrock_guardrail import BedrockGuardrail
+from cdk.constructs.bedrock_guardrail import BedrockGuardrail
 
 
 class BedrockAgent(Construct):
@@ -90,6 +90,10 @@ class BedrockAgent(Construct):
         self.agent_alias_id = self.agent_alias.attr_agent_alias_id
         # Ensure agent is fully stabilized before updating the alias
         self.agent_alias.add_dependency(self.agent)
+
+        # local will need these for .env file
+        core.CfnOutput(self, "BEDROCK_AGENT_ID", value=self.agent_id)
+        core.CfnOutput(self, "BEDROCK_AGENT_ALIAS_ID", value=self.agent_alias_id)
 
     def add_knowledge_base(self, knowledge_base: bedrock.CfnAgent.AgentKnowledgeBaseProperty):
         """Add a knowledge base to the agent"""

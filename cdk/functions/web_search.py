@@ -2,7 +2,7 @@ import json
 from typing import Union
 
 from pydantic import BaseModel
-from bedrock_agents.models.bedrock_lambda_types import BedrockEvent, BedrockResponseEvent
+from cdk.models import BedrockEvent, BedrockResponseEvent
 import requests
 from aws_lambda_powertools import Logger
 from aws_lambda_typing.context import Context

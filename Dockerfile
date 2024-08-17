@@ -21,7 +21,7 @@ RUN yum remove -y git &&\
     poetry cache clear pypi --all
 
 # Copy the lib dir to the Docker image
-COPY . ${LAMBDA_TASK_ROOT}/
+COPY cdk/ ${LAMBDA_TASK_ROOT}/cdk/
 
 # Set the CMD to lambda handler (could also be done as a parameter override outside of the Dockerfile)
 CMD ["lib.functions.some_file.handler"]

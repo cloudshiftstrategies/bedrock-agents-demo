@@ -2,8 +2,10 @@
   "app": "python3 app.py",
   "watch": {
     "include": [
-      "bedrock_agents/**",
+      "cdk/**",
       "Dockerfile",
+      "gradio_app/**",
+      "Dockerfile.ui",
       "app.py"
     ],
     "exclude": [

@@ -1,6 +1,6 @@
 import aws_cdk as core
 from constructs import Construct
-from bedrock_agents.constructs import pinecone_index as pi
+from cdk.constructs import pinecone_index as pi
 
 
 class BedrockDataStack(core.Stack):

@@ -27,7 +27,7 @@ RUN apt-get clean &&\
     poetry cache clear pypi --all
 
 # Copy this app to the Docker image
-COPY . ${LAMBDA_TASK_ROOT}/
+COPY gradio_app/ ${LAMBDA_TASK_ROOT}/gradio_app/
  
 # Replace with run `cmd` property in aws_cdk.aws_lambda.DockerImageCode.from_image_asset()
 CMD ["python3", "some/app.py"]

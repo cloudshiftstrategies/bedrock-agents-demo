@@ -17,6 +17,8 @@ pydantic = "^2.8.2"
 requests = "^2.32.3"
 streamlit = "^1.36.0"
 gradio = "^4.38.1"
+pandas = "^2.2.2"
+plotly = "^5.23.0"
 
 
 [tool.poetry.group.dev.dependencies]

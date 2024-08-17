@@ -1,44 +1,15 @@
-import os
 from typing import Generator
 import gradio as gr
-import boto3
 from dotenv import load_dotenv
-from starlette.requests import Request
-from bedrock_agents.ui.models import EventStreamChunk, EventStreamTrace
+from gradio_app.models import EventStreamChunk, EventStreamTrace
+from gradio_app import cw_metrics
+from gradio_app import helpers
+from gradio_app import kb
+
 
 load_dotenv()
 
-
-class Bedrock:
-    # A class to hold the client so that it can be reused
-    _client: boto3.client = None
-    agent_id = os.environ.get("BEDROCK_AGENT_ID")
-    agent_alias_id = os.environ.get("BEDROCK_AGENT_ALIAS_ID")
-
-    @property
-    def client(self):
-        if not self._client:
-            session = boto3.Session(profile_name=os.getenv("AWS_PROFILE", default=None))
-            self._client = session.client("bedrock-agent-runtime", region_name=os.environ.get("AWS_REGION"))
-        return self._client
-
-
-BEDROCK = Bedrock()
-
-
-def request_as_dict(request: Request) -> dict:
-    """Convert a Starlette request object to a flat dict"""
-    # https://www.starlette.io/requests/
-    return dict(
-        url=request.url,
-        method=request.method,
-        headers=dict(request.headers),
-        session_hash=request.session_hash,
-        query_string=dict(request.query_params),
-        username=request.username,
-        host=request.client.host,
-        cookies=request.cookies,
-    )
+BOTO = helpers.Boto()
 
 
 def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Request = None) -> Generator[any, any, any]:
@@ -51,7 +22,7 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
     return: Generator[any, any, any]: yield ( chatbot, prompt_str, request_dict,  events_list )
     """
     events = []  # empty event list to hold the events for debugging
-    request_dict = request_as_dict(request)  # Convert the request object to a dict
+    request_dict = helpers.request_as_dict(request)  # Convert the request object to a dict
     chatbot.append(gr.ChatMessage(role="user", content=prompt))  # Add users prompt text to the chatbot history
 
     # Before we invoke the agent, Yield the ( chatbot, empty prompt str, request_dict, & events )
@@ -59,9 +30,9 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
     yield chatbot, "", request_dict, events
 
     # Send the prompt to the Bedrock agent. The sessionId is the session_hash from the request
-    response = BEDROCK.client.invoke_agent(
-        agentId=BEDROCK.agent_id,
-        agentAliasId=BEDROCK.agent_alias_id,
+    response = BOTO.bedrock_runtime_client.invoke_agent(
+        agentId=BOTO.agent_id,
+        agentAliasId=BOTO.agent_alias_id,
         sessionId=request.session_hash,
         endSession=False,
         enableTrace=trace,
@@ -91,22 +62,35 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
 # This is the entire UI for the Gradio app below
 with gr.Blocks(title="Bedrock Agent Demo") as demo:
     gr.Markdown("# Bedrock Agent Demo")
-    chatbot = gr.Chatbot(
-        type="messages",
-        layout="panel",
-        height=1024,
-        placeholder="Hello, how can I help you?",
-        avatar_images=(None, "https://cdn-icons-png.flaticon.com/128/773/773381.png"),
-    )
-    prompt = gr.Textbox(lines=1, label="Prompt", placeholder="Enter prompt here")
-    trace_checkbox = gr.Checkbox(label="Enable", info="Agent Traces", value=True)
-    with gr.Accordion(label="Debug", open=False):
-        events = gr.JSON(label="Events")  # Shows the raw events for debugging
-        request = gr.JSON(label="Request")  # Shows the http request details for debugging
+    with gr.Tab(label="Chat"):
+        chatbot = gr.Chatbot(
+            type="messages",
+            layout="panel",
+            height=800,
+            placeholder="Hello, how can I help you?",
+            avatar_images=(None, "https://cdn-icons-png.flaticon.com/128/773/773381.png"),
+        )
+        prompt = gr.Textbox(lines=1, label="Prompt", placeholder="Enter prompt here")
+        trace_chkbox = gr.Checkbox(label="Enable", info="Agent Traces", value=True)
+        with gr.Accordion(label="Debug", open=False):
+            events = gr.JSON(label="Events")  # Shows the raw events for debugging
+            request = gr.JSON(label="Request")  # Shows the http request details for debugging
+    with gr.Tab(label="KB"):
+        gr.Markdown("Knowledge Base Articles")
+        file_list = gr.HTML(kb.get_kb_docs)  # List of KB documents in html table
+        kb_file = gr.File(label="Upload New Article")  # File uploader
+        with gr.Accordion(label="Ingestion Jobs", open=True):
+            refresh_jobs_btn = gr.Button("Refresh Ingestion Job List", variant="primary")  # Button to refresh jobs
+            ingestion_jobs = gr.DataFrame(kb.get_kb_ingestion_jobs)  # The ingestion jobs table
+    with gr.Tab(label="Metrics"):
+        gr.Markdown("Bedrock Metrics")
+        for plot in cw_metrics.get_plots(BOTO.client("cloudwatch")):
+            gr.Plot(plot)
 
-    # Defines happens when the user submits the prompt - invokes the agent!
-    prompt.submit(fn=invoke_agent, inputs=[prompt, chatbot, trace_checkbox], outputs=[chatbot, prompt, request, events])
-
+    # Events and Actions
+    prompt.submit(fn=invoke_agent, inputs=[prompt, chatbot, trace_chkbox], outputs=[chatbot, prompt, request, events])
+    kb_file.upload(kb.upload_kb_doc, inputs=kb_file, outputs=file_list)  # Upload a new document to the KB
+    refresh_jobs_btn.click(kb.get_kb_ingestion_jobs, outputs=ingestion_jobs)  # Refresh jobs table when clicked
 
 if __name__ == "__main__":
     demo.launch(debug=True, server_port=8080, show_error=True)

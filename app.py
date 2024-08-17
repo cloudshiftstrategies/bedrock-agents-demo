@@ -2,9 +2,9 @@
 
 import aws_cdk as core
 
-from bedrock_agents.bedrock_agents_stack import BedrockAgentsStack
-from bedrock_agents.bedrock_data_stack import BedrockDataStack
-from bedrock_agents.bedrock_app_stack import BedrockAppStack
+from cdk.stacks.bedrock_agents_stack import BedrockAgentsStack
+from cdk.stacks.bedrock_data_stack import BedrockDataStack
+from cdk.stacks.bedrock_app_stack import BedrockAppStack
 
 
 env = core.Environment(account="603006933259", region="us-east-1")
@@ -23,6 +23,9 @@ app_stack = BedrockAppStack(
     description="Bedrock App",
     br_agent_id=agent_stack.bedrock_agent.agent_id,
     br_agent_alias_id=agent_stack.bedrock_agent.agent_alias_id,
+    br_kb_bucket=agent_stack.knowledge_base.bucket,
+    br_kb_id=agent_stack.knowledge_base.knowledge_base_id,
+    br_datasource_id=agent_stack.knowledge_base.data_source_id,
     env=env,
 )
 

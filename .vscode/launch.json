@@ -2,14 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "debug streamlit",
-            "type": "debugpy",
-            "request": "launch",
-            "program": ".venv/bin/streamlit",  // /home/xx/tmp/venv/bin/streamlit",
-            //"args": [ "run", "bedrock_agents/ui/app.py" ]
-            "args": [ "run", "${file}" ]
-        },
-        {
             "name": "debug gradio",
             "type": "debugpy",
             "request": "launch",

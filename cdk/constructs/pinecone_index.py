@@ -5,8 +5,10 @@ from aws_cdk import aws_secretsmanager as sm
 from aws_cdk import custom_resources as cr
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_ecr_assets as ecr
-from bedrock_agents.functions import pinecone_index as pi_fn
+from cdk.functions import pinecone_index as pi_fn
 from constructs import Construct
+
+from cdk.stacks.helpers import prune_dir
 
 
 class PineconeSecret(Construct):
@@ -53,8 +55,9 @@ class PinconeIndex(Construct):
             description="Pinecone Index Custom Resource Handler",
             code=lambda_.DockerImageCode.from_image_asset(
                 directory=code_dir,
-                cmd=["bedrock_agents.functions.pinecone_index.lambda_handler"],
+                cmd=["cdk.functions.pinecone_index.lambda_handler"],
                 platform=ecr.Platform.LINUX_AMD64,  # required when building on arm64 machines (mac m1)
+                exclude=prune_dir(keeps=["functions", "models"]),  # keeps updates smaller and faster
             ),
             timeout=core.Duration.minutes(2),
             environment={pi_fn.PINECONE_API_KEY_SECRET_ENV_NAME: self.secret.secret_name},
