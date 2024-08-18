@@ -4,6 +4,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_ecr_assets as ecr
 from aws_cdk import aws_s3 as s3
+from aws_cdk import aws_secretsmanager as sm
 from constructs import Construct
 
 
@@ -18,6 +19,7 @@ class BedrockAppStack(core.Stack):
         br_kb_bucket: s3.IBucket,
         br_kb_id: str,
         br_datasource_id: str,
+        okta_secret: sm.ISecret,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -43,6 +45,7 @@ class BedrockAppStack(core.Stack):
                 "KB_BUCKET": br_kb_bucket.bucket_name,
                 "KB_ID": br_kb_id,
                 "DATASOURCE_ID": br_datasource_id,
+                "OKTA_SECRET_ARN": okta_secret.secret_arn,
                 "LOG_LEVEL": "DEBUG",
             },
         )
@@ -55,6 +58,9 @@ class BedrockAppStack(core.Stack):
         # Allow the app to read/write to the kb bucket.
         # Normally we wouldnt allow users to update the kb, but this is only for the demo
         br_kb_bucket.grant_read_write(lambda_fn)
+
+        # Allow the app to read the Okta secret
+        okta_secret.grant_read(lambda_fn)
 
         # Grant the gradio app the ability to invoke the bedrock agent
         lambda_fn.role.add_to_principal_policy(

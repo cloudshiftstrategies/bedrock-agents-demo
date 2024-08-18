@@ -31,8 +31,6 @@ class Boto:
     _brrt_client: boto3.client = None
     _s3_client: boto3.client = None
     _session: boto3.Session = None
-    agent_id = os.environ.get("BEDROCK_AGENT_ID")
-    agent_alias_id = os.environ.get("BEDROCK_AGENT_ALIAS_ID")
 
     @property
     def session(self) -> boto3.Session:

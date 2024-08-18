@@ -4,8 +4,6 @@ import json
 from pinecone import Pinecone, ServerlessSpec
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.utilities import parameters
-from aws_lambda_powertools.utilities.typing import LambdaContext
-from aws_lambda_typing import events
 
 logger = Logger(service="pinecone-index")
 logger.setLevel("INFO")
@@ -18,7 +16,7 @@ PINECONE_API_KEY_SECRET_ENV_NAME = "PINECONE_API_KEY_SECRET_NAME"
 
 
 @logger.inject_lambda_context(log_event=True)
-def lambda_handler(event: events.CloudFormationCustomResourceEvent, context: LambdaContext):
+def lambda_handler(event, context):
     secret_name = os.getenv(PINECONE_API_KEY_SECRET_ENV_NAME)
     logger.info(f"secret_name: {secret_name}")
     api_key: str = os.getenv("PINECONE_API_KEY") or json.loads(parameters.get_secret(secret_name)).get("apiKey")

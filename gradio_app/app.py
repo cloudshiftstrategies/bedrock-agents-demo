@@ -1,7 +1,19 @@
-from typing import Generator
+import json
+import os
+from typing import Any, Generator
 import gradio as gr
 from dotenv import load_dotenv
-from gradio_app import cw_metrics, helpers, kb, models
+from gradio_app import helpers, kb, models  # cw_metrics,
+
+# from authlib.integrations.starlette_client import OAuth, OAuthError
+from fastapi import FastAPI, Depends, Request
+from starlette.responses import RedirectResponse
+from starlette.middleware.sessions import SessionMiddleware
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.utilities import parameters
+import uvicorn
+
+logger = Logger(service="gradio_app")
 
 
 load_dotenv()
@@ -26,8 +38,8 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
 
     # Send the prompt to the Bedrock agent. The sessionId is the session_hash from the request
     response = helpers.BOTO.bedrock_runtime_client.invoke_agent(
-        agentId=helpers.BOTO.agent_id,
-        agentAliasId=helpers.BOTO.agent_alias_id,
+        agentId=os.getenv("BEDROCK_AGENT_ID"),
+        agentAliasId=os.getenv("BEDROCK_AGENT_ALIAS_ID"),
         sessionId=request.session_hash,
         endSession=False,
         enableTrace=trace,
@@ -57,6 +69,7 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
 # This is the entire UI for the Gradio app below
 with gr.Blocks(title="Bedrock Agent Demo") as demo:
     gr.Markdown("# Bedrock Agent Demo")
+
     with gr.Tab(label="Chat"):
         chatbot = gr.Chatbot(
             type="messages",
@@ -70,6 +83,10 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
         with gr.Accordion(label="Debug", open=False):
             events = gr.JSON(label="Events")  # Shows the raw events for debugging
             request = gr.JSON(label="Request")  # Shows the http request details for debugging
+        prompt.submit(
+            fn=invoke_agent, inputs=[prompt, chatbot, trace_chkbox], outputs=[chatbot, prompt, request, events]
+        )
+
     with gr.Tab(label="KB"):
         gr.Markdown("Knowledge Base Articles")
         file_list = gr.HTML(kb.get_kb_docs)  # List of KB documents in html table
@@ -77,15 +94,43 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
         with gr.Accordion(label="Ingestion Jobs", open=True):
             refresh_jobs_btn = gr.Button("Refresh Ingestion Job List", variant="primary")  # Button to refresh jobs
             ingestion_jobs = gr.DataFrame(kb.get_kb_ingestion_jobs)  # The ingestion jobs table
-    with gr.Tab(label="Metrics"):
-        gr.Markdown("Bedrock Metrics")
-        for plot in cw_metrics.get_plots(helpers.BOTO.client("cloudwatch")):
-            gr.Plot(plot)
+        kb_file.upload(kb.upload_kb_doc, inputs=kb_file, outputs=file_list)  # Upload a new document to the KB
+        refresh_jobs_btn.click(kb.get_kb_ingestion_jobs, outputs=ingestion_jobs)  # Refresh jobs table when clicked
 
-    # Events and Actions
-    prompt.submit(fn=invoke_agent, inputs=[prompt, chatbot, trace_chkbox], outputs=[chatbot, prompt, request, events])
-    kb_file.upload(kb.upload_kb_doc, inputs=kb_file, outputs=file_list)  # Upload a new document to the KB
-    refresh_jobs_btn.click(kb.get_kb_ingestion_jobs, outputs=ingestion_jobs)  # Refresh jobs table when clicked
+    # with gr.Tab(label="Metrics"):
+    #     gr.Markdown("Bedrock Metrics")
+    #     for plot in cw_metrics.get_plots(helpers.BOTO.client("cloudwatch")):
+    #         gr.Plot(plot)
+
+# Gradio will be mounted in the FastAPI app
+
+
+def get_user(request: Request):
+    return {"username": "demo"}
+
+
+app = FastAPI()
+if okta_secret_arn := os.getenv("OKTA_SECRET_ARN"):
+    logger.info(f"Getting Okta secret from {okta_secret_arn}")
+    okta_secret = json.loads(parameters.get_secret(okta_secret_arn))
+
+SECRET_KEY = okta_secret.get("SESSION_SECRET")
+# TODO remove this print statement
+logger.info(f"Session secret: {SECRET_KEY})")
+app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+app = gr.mount_gradio_app(app, demo, path="/gradio", auth_dependency=get_user)
+
+# This Gradio app will be mounted at /login and doesn't require auth
+with gr.Blocks() as login:
+    gr.Button("Login", link="/login")
+app = gr.mount_gradio_app(app, login, path="/login")
+
+
+@app.get("/")
+def public(user: dict = Depends(get_user)):
+    return RedirectResponse(url="/gradio") if user else RedirectResponse(url="/login")
+
 
 if __name__ == "__main__":
-    demo.launch(debug=True, server_port=8080, show_error=True)
+    uvicorn.run(app, port=8080)
+    # demo.launch(debug=True, server_port=8080, show_error=True)

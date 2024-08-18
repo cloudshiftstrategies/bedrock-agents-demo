@@ -26,6 +26,7 @@ app_stack = BedrockAppStack(
     br_kb_bucket=agent_stack.knowledge_base.bucket,
     br_kb_id=agent_stack.knowledge_base.knowledge_base_id,
     br_datasource_id=agent_stack.knowledge_base.data_source_id,
+    okta_secret=data_stack.okta_secret,
     env=env,
 )
 
