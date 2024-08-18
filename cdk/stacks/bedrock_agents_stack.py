@@ -117,4 +117,3 @@ class BedrockAgentsStack(core.Stack):
             self, "BedrockDemoCodeBucket", removal_policy=core.RemovalPolicy.DESTROY, auto_delete_objects=True
         )
         self.code_bucket.grant_read(self.bedrock_agent.role)
-

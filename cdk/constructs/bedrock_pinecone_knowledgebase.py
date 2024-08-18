@@ -136,7 +136,8 @@ class BedrockPineconeKnowledgeBase(Construct):
 
             def handler(event, context):
                 logger.info(json.dumps({"event": event}))
-                triggers = ", ".join([f"{r['eventName']} - {r['s3']['object']['key']}" for r in event.get("Records", [])])
+                event_records = event.get("Records", [])
+                triggers = ", ".join([f"{r['eventName']} - {r['s3']['object']['key']}" for r in event_records])
                 logger.info(f"Starting ingestion job, datasource:{os.getenv('DATASOURCE_ID')}, kb:{os.getenv('KB_ID')}")
                 result = boto3.client("bedrock-agent").start_ingestion_job(
                     dataSourceId=os.getenv("DATASOURCE_ID"),

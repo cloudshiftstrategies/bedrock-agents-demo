@@ -3,8 +3,10 @@ from typing import List, Dict, Optional, Any
 
 
 # Define the data models for the Bedrock InvokeAgent response which is a very complex nested structure.
-# Creating a pydatnic model for the response will make it easier to parse the response and extract the relevant information.
+# Creating a pydatnic model for the response will make it easier to parse the response and extract the
+# relevant information.
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-agent-runtime/client/invoke_agent.html
+
 
 class InferenceConfiguration(BaseModel):
     temperature: Optional[float]
@@ -158,12 +160,14 @@ class Trace(BaseModel):
 
 class TraceMessage(BaseModel):
     """A simple class to hold a message to be displayed in the Bedrock InvokeAgent response."""
+
     title: str
     content: Optional[str] = ""
 
 
 class EventStreamTrace(BaseModel):
     """Bedrock InvokeAgent response traces are a complext nested structure. This class is used to parse the traces."""
+
     agentId: str
     agentAliasId: str
     sessionId: str
@@ -171,7 +175,7 @@ class EventStreamTrace(BaseModel):
 
     @property
     def messages(self) -> Optional[List[TraceMessage]]:
-        """ Helper function to parse the EventStreamTrace and return a TraceMessage object.
+        """Helper function to parse the EventStreamTrace and return a TraceMessage object.
 
         param index: int: The index of the trace message. This will be prefixed to the metadata title.
         return: List[TraceMessage]: List of trace messages or empty list if no message should be displayed.

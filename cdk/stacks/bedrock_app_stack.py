@@ -31,7 +31,7 @@ class BedrockAppStack(core.Stack):
             code=lambda_.DockerImageCode.from_image_asset(
                 directory=code_dir,
                 file="Dockerfile.ui",
-                cmd=["python3", "gradio/app.py"],
+                cmd=["python3", "gradio_app/app.py"],
                 platform=ecr.Platform.LINUX_AMD64,  # required when building on arm64 machines (mac m1)
             ),
             architecture=lambda_.Architecture.X86_64,
@@ -43,6 +43,7 @@ class BedrockAppStack(core.Stack):
                 "KB_BUCKET": br_kb_bucket.bucket_name,
                 "KB_ID": br_kb_id,
                 "DATASOURCE_ID": br_datasource_id,
+                "LOG_LEVEL": "DEBUG",
             },
         )
         # Create a function URL to invoke the gratio app function

@@ -1,15 +1,10 @@
 from typing import Generator
 import gradio as gr
 from dotenv import load_dotenv
-from gradio_app.models import EventStreamChunk, EventStreamTrace
-from gradio_app import cw_metrics
-from gradio_app import helpers
-from gradio_app import kb
+from gradio_app import cw_metrics, helpers, kb, models
 
 
 load_dotenv()
-
-BOTO = helpers.Boto()
 
 
 def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Request = None) -> Generator[any, any, any]:
@@ -30,9 +25,9 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
     yield chatbot, "", request_dict, events
 
     # Send the prompt to the Bedrock agent. The sessionId is the session_hash from the request
-    response = BOTO.bedrock_runtime_client.invoke_agent(
-        agentId=BOTO.agent_id,
-        agentAliasId=BOTO.agent_alias_id,
+    response = helpers.BOTO.bedrock_runtime_client.invoke_agent(
+        agentId=helpers.BOTO.agent_id,
+        agentAliasId=helpers.BOTO.agent_alias_id,
         sessionId=request.session_hash,
         endSession=False,
         enableTrace=trace,
@@ -43,12 +38,12 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
     for i, event_chunk in enumerate(response.get("completion")):
         if chunk := event_chunk.get("chunk"):
             # This is a chunk of the AI response, add it to the chatbot history
-            chunk = EventStreamChunk.model_validate(chunk)
+            chunk = models.EventStreamChunk.model_validate(chunk)
             chatbot.append(gr.ChatMessage(role="assistant", content=chunk.text))
 
         if event_trace := event_chunk.get("trace"):
             # This is a trace chunk, get the message and add it to chatbot history (if it isnt already there)
-            for msg in EventStreamTrace.model_validate(event_trace).messages:
+            for msg in models.EventStreamTrace.model_validate(event_trace).messages:
                 if not any(filter(lambda m: isinstance(m, dict) and m.get("content") == msg.content, chatbot)):
                     metadata = {"title": f"{i}. {msg.title}"}
                     chatbot.append(gr.ChatMessage(role="assistant", content=msg.content, metadata=metadata))
@@ -84,7 +79,7 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
             ingestion_jobs = gr.DataFrame(kb.get_kb_ingestion_jobs)  # The ingestion jobs table
     with gr.Tab(label="Metrics"):
         gr.Markdown("Bedrock Metrics")
-        for plot in cw_metrics.get_plots(BOTO.client("cloudwatch")):
+        for plot in cw_metrics.get_plots(helpers.BOTO.client("cloudwatch")):
             gr.Plot(plot)
 
     # Events and Actions

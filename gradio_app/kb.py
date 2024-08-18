@@ -1,16 +1,18 @@
 import os
 from textwrap import dedent
-from gradio_app.helpers import Boto
+from gradio_app import helpers
 import pandas as pd
+from aws_lambda_powertools import Logger
 
-BOTO = Boto()
+logger = Logger(service="gradio_app.kb")
 
 
 def get_kb_ingestion_jobs(max_results=25) -> pd.DataFrame:
     """Returns a DataFrame of the ingestion jobs for the knowledge base"""
     datasource_id = os.environ.get("DATASOURCE_ID")
     kb_id = os.environ.get("KB_ID")
-    paginator = BOTO.bedrock_client.get_paginator("list_ingestion_jobs")
+    logger.info(f"Getting ingestion jobs for datasource: {datasource_id} and kb: {kb_id}")
+    paginator = helpers.BOTO.bedrock_client.get_paginator("list_ingestion_jobs")
     response_iterator = paginator.paginate(dataSourceId=datasource_id, knowledgeBaseId=kb_id, maxResults=max_results)
     all_jobs = []
     for page in response_iterator:
@@ -31,15 +33,16 @@ def get_kb_ingestion_jobs(max_results=25) -> pd.DataFrame:
 
 def get_kb_docs() -> str:
     bucket_name = os.environ.get("KB_BUCKET")
-    response = BOTO.s3_client.list_objects_v2(Bucket=bucket_name)
+    logger.info(f"Getting kb documents from bucket: {bucket_name}")
+    response = helpers.BOTO.s3_client.list_objects_v2(Bucket=bucket_name)
     # Extract the relevant details
     files = []
     for content in response.get("Contents") or []:
         file_key = content["Key"]
-        get_url = BOTO.s3_client.generate_presigned_url(
+        get_url = helpers.BOTO.s3_client.generate_presigned_url(
             "get_object", Params={"Bucket": bucket_name, "Key": file_key}, ExpiresIn=3600  # URL valid for 1 hour
         )
-        delete_url = BOTO.s3_client.generate_presigned_url(
+        delete_url = helpers.BOTO.s3_client.generate_presigned_url(
             "delete_object", Params={"Bucket": bucket_name, "Key": file_key}, ExpiresIn=3600  # URL valid for 1 hour
         )
         delete_html = dedent(
@@ -61,5 +64,5 @@ def get_kb_docs() -> str:
 
 
 def upload_kb_doc(file_path):
-    BOTO.s3_client.upload_file(file_path, os.environ.get("KB_BUCKET"), os.path.basename(file_path))
+    helpers.BOTO.s3_client.upload_file(file_path, os.environ.get("KB_BUCKET"), os.path.basename(file_path))
     return get_kb_docs()

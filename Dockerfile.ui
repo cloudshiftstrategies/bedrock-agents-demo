@@ -8,6 +8,7 @@ ENV AWS_LWA_INVOKE_MODE=RESPONSE_STREAM
 # Configure the Lambda runtime environment
 ENV LAMBDA_TASK_ROOT=/var/task
 WORKDIR ${LAMBDA_TASK_ROOT}
+ENV PYTHONPATH=${PYTHONPATH}:${LAMBDA_TASK_ROOT}
 
 # Configure matplotlib to use a temporary directory for its configuration to speed up the import of Matplotlib and to better support multiprocessing
 ENV MPLCONFIGDIR=/tmp/matplotlib
@@ -28,6 +29,6 @@ RUN apt-get clean &&\
 
 # Copy this app to the Docker image
 COPY gradio_app/ ${LAMBDA_TASK_ROOT}/gradio_app/
- 
+
 # Replace with run `cmd` property in aws_cdk.aws_lambda.DockerImageCode.from_image_asset()
 CMD ["python3", "some/app.py"]

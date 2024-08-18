@@ -1,4 +1,3 @@
-import io
 from typing import List, Tuple, Set
 import boto3
 from datetime import datetime, timedelta, UTC
@@ -19,7 +18,7 @@ def get_metrics(client: boto3.client) -> Tuple[Set[str], Set[str]]:
 
 def get_plots(client: boto3.client, hours=24, period=300):
     metric_names, model_ids = get_metrics(client)
-    namespace = 'AWS/Bedrock'
+    namespace = "AWS/Bedrock"
     start_time = datetime.now(UTC) - timedelta(hours=hours)
     end_time = datetime.now(UTC)
     plots: List[px.line] = []
@@ -62,8 +61,8 @@ def get_plots(client: boto3.client, hours=24, period=300):
                     "Value": values,
                 }
             )
-            metrics_df = metrics_df.dropna(axis=1, how='all')
-            df = df.dropna(axis=1, how='all')
+            metrics_df = metrics_df.dropna(axis=1, how="all")
+            df = df.dropna(axis=1, how="all")
             metrics_df = pd.concat([metrics_df, df])
         metrics_df["ModelId"] = metrics_df["ModelId"].apply(lambda x: x.split("/")[-1])  # Remove the arn prefix
         pivot_df = metrics_df.pivot(index=["Timestamp"], columns="ModelId", values="Value")

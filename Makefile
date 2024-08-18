@@ -28,3 +28,9 @@ cdk-deploy:
 
 cdk-synth:
 	npx cdk list
+
+docker-shell:
+	docker build -f Dockerfile.ui -t gradio_app . && docker run --rm -it gradio_app /bin/bash
+
+web-server:
+	python -m "gradio_app.app"
