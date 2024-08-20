@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from cdk.models import BedrockEvent, BedrockResponseEvent
 import requests
 from aws_lambda_powertools import Logger
-from aws_lambda_typing.context import Context
 
 logger = Logger(service="web_search", level="INFO", log_uncaught_exceptions=True)
 
@@ -60,7 +59,7 @@ def jina_retrieve(url: str) -> Union[str, JinaError]:
 
 
 @logger.inject_lambda_context
-def lambda_handler(event: dict, context: Context) -> dict:
+def lambda_handler(event: dict, context) -> dict:
 
     bedrock_event = BedrockEvent.model_validate(event)
 

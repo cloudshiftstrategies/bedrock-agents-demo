@@ -9,6 +9,13 @@ from authlib.integrations.starlette_client import OAuth, OAuthError
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
 
+# Enable debug logging for authlib
+# import logging
+# import sys
+# log = logging.getLogger('authlib')
+# log.addHandler(logging.StreamHandler(sys.stdout))
+# log.setLevel(logging.DEBUG)
+
 load_dotenv()
 
 logger = Logger(service="gradio_app.oauth.okta")
@@ -18,7 +25,7 @@ def get_user(request: Request) -> Optional[str]:
     return request.session.get("user")
 
 
-def init_okta(app: FastAPI):
+def init_okta(app: FastAPI) -> FastAPI:
     # Configure OAuth
     if okta_secret_arn := os.getenv("OKTA_SECRET_ARN"):
         logger.info(f"Getting Okta secret from {okta_secret_arn}")
@@ -56,3 +63,5 @@ def init_okta(app: FastAPI):
             return RedirectResponse(url="/")
         request.session["user"] = dict(access_token)["userinfo"]
         return RedirectResponse(url="/")
+
+    return app

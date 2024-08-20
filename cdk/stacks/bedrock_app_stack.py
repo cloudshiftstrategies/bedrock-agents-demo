@@ -47,7 +47,7 @@ class BedrockAppStack(core.Stack):
             ),
             architecture=lambda_.Architecture.X86_64,
             memory_size=8192,
-            timeout=core.Duration.minutes(10),
+            timeout=core.Duration.minutes(5),
             environment={
                 "BEDROCK_AGENT_ID": br_agent_id,
                 "BEDROCK_AGENT_ALIAS_ID": br_agent_alias_id,
@@ -91,25 +91,18 @@ class BedrockAppStack(core.Stack):
             )
         )
 
+        # CLOUDFRONT DISTRIBUTION
         # Create a function URL to invoke the gratio app function
         fn_url = lambda_fn.add_function_url(
+            # TODO Struggling to get IAM auth to work with CloudFront. Getting "invalidsignatureexception" on POST
+            # "The request signature we calculated does not match the signature you provided. Check your AWS Secret
+            # Access Key and signing method. Consult the service documentation for details."
             # https://aws.amazon.com/blogs/networking-and-content-delivery/secure-your-lambda-function-urls-using-amazon-cloudfront-origin-access-control/
+            # https://repost.aws/questions/QU09fb8APhS76k2hRHn4roSw/connecting-cloudfront-to-lambda-function-url-always-result-in-forbidden
             # auth_type=lambda_.FunctionUrlAuthType.AWS_IAM,
             auth_type=lambda_.FunctionUrlAuthType.NONE,
             invoke_mode=lambda_.InvokeMode.RESPONSE_STREAM,
-            cors=lambda_.FunctionUrlCorsOptions(
-                allowed_origins=["*"],
-                allowed_methods=[lambda_.HttpMethod.GET, lambda_.HttpMethod.POST],
-                allow_credentials=True,
-                max_age=core.Duration.minutes(1),
-            ),
         )
-        core.CfnOutput(self, "GradioFnUrl", value=fn_url.url)
-
-        # CLOUDFRONT DISTRIBUTION
-
-        # Extract the function domain name (<domain_name>) from the function URL (https://<domain_name>/)
-        fn_domain_name = core.Fn.select(2, core.Fn.split("/", fn_url.url))
 
         # Create an SSL certificate in ACM for the domain
         zone = r53.HostedZone.from_lookup(self, "HostedZone", domain_name=zone_name)
@@ -120,21 +113,6 @@ class BedrockAppStack(core.Stack):
             validation=acm.CertificateValidation.from_dns(hosted_zone=zone),
         )
 
-        # Create a Lambda function to rewrite the host header to x-forwarded-host
-        cf_host_rw_fn = cf.Function(
-            self,
-            "RewriteCdnHost",
-            comment="Copy host header to x-forwarded-host",
-            code=cf.FunctionCode.from_inline(
-                """
-                function handler(event) {
-                    var req = event.request;
-                    if (req.headers['host']) { req.headers['x-forwarded-host'] = {value: req.headers['host'].value}; }
-                    return req;
-                }
-            """
-            ),
-        )
         # Create a bucket for CloudFront logs
         cf_log_bucket = s3.Bucket(
             self,
@@ -156,41 +134,20 @@ class BedrockAppStack(core.Stack):
             http_version=cf.HttpVersion.HTTP2,
             log_bucket=cf_log_bucket,
             default_behavior=cf.BehaviorOptions(
-                origin=origins.HttpOrigin(
-                    domain_name=fn_domain_name,
-                    protocol_policy=cf.OriginProtocolPolicy.HTTPS_ONLY,
-                    origin_ssl_protocols=[cf.OriginSslPolicy.TLS_V1_2],
+                origin=origins.FunctionUrlOrigin(
+                    fn_url,
+                    read_timeout=core.Duration.seconds(60),  # need an aws rate-limit change to go higher
+                    custom_headers={"x-forwarded-host": fqdn},  # required for app to build correct urls
                 ),
                 allowed_methods=cf.AllowedMethods.ALLOW_ALL,
-                cached_methods=cf.CachedMethods.CACHE_GET_HEAD_OPTIONS,
                 viewer_protocol_policy=cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-                compress=True,
-                smooth_streaming=True,
-                # origin_request_policy=cf.OriginRequestPolicy.CORS_CUSTOM_ORIGIN,
-                cache_policy=cf.CachePolicy(
-                    self,
-                    "CachePolicy",
-                    header_behavior=cf.CacheHeaderBehavior.allow_list("Authorization", "X-Forwarded-Host"),
-                    cookie_behavior=cf.CacheCookieBehavior.allow_list("session"),
-                    query_string_behavior=cf.CacheQueryStringBehavior.all(),
-                    max_ttl=core.Duration.hours(1),
-                    min_ttl=core.Duration.seconds(300),
-                    default_ttl=core.Duration.seconds(300),
-                    enable_accept_encoding_gzip=True,
-                    enable_accept_encoding_brotli=True,
-                ),
-                # cache_policy=cf.CachePolicy.CACHING_DISABLED,
+                cache_policy=cf.CachePolicy.CACHING_DISABLED,
+                origin_request_policy=cf.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
                 response_headers_policy=cf.ResponseHeadersPolicy.SECURITY_HEADERS,
-                function_associations=[
-                    cf.FunctionAssociation(
-                        event_type=cf.FunctionEventType.VIEWER_REQUEST,
-                        function=cf_host_rw_fn,
-                    )
-                ],
             ),
         )
 
-        # Create an Origin Access Control for the Lambda function
+        # Origin Access Control for the Lambda function URL invoked by the CloudFront distribution
         oac = cf.CfnOriginAccessControl(
             self,
             "GradioLambdaOAC",
@@ -222,5 +179,6 @@ class BedrockAppStack(core.Stack):
             target=r53.RecordTarget.from_alias(r53_targets.CloudFrontTarget(cdn)),
             record_name=host_name,
         )
+
         # Output the CloudFront distribution URL
         core.CfnOutput(self, "GradioUrl", value=f"https://{fqdn}")

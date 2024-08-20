@@ -3,6 +3,7 @@ from typing import Generator
 import gradio as gr
 from dotenv import load_dotenv
 from gradio_app import helpers, models, kb, oauth_okta, middleware, fixes  # , cw_metrics
+import gradio.route_utils
 
 from fastapi import FastAPI, Depends, Request
 from starlette.responses import RedirectResponse
@@ -110,11 +111,12 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
     #         gr.Plot(plot)
 
 app = FastAPI()  # Gradio will be mounted in the FastAPI app as /gradio
-app = gr.mount_gradio_app(app, demo, path="/gradio", auth_dependency=oauth_okta.get_user)
-oauth_okta.init_okta(app)  # Configure the Okta OAuth2 authentication
-fixes.issue_7943(app)  # Apply the fixes for issue 7934
+gradio.route_utils.get_root_url = fixes.get_root_url  # patch get_root_url() in gradio.route_utils
+# Below, `root_path` is non-standard parameter used by monkey patch
+app = gr.mount_gradio_app(app, demo, path="/gradio", auth_dependency=oauth_okta.get_user, root_path="/gradio")
+app = oauth_okta.init_okta(app)  # Configure the Okta OAuth2 authentication
 app.add_middleware(middleware.XForwardedHostMiddleware)  # update host header using X-Forwarded-Host header
-app.add_middleware(middleware.LambdaRequestLogger)  # Log the incoming request
+app.add_middleware(middleware.LambdaRequestLogger)  # Log the incoming request to debug
 
 
 @app.get("/")
@@ -124,4 +126,5 @@ def public(request: Request, user: dict = Depends(oauth_okta.get_user)):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=int(os.environ.get("PORT", "8080")))
+    uvicorn.run(app, port=int(os.environ.get("PORT", "8080")))  # This is with auth
+    # demo.launch(server_port=int(os.environ.get("PORT", "8080")))  # This is without auth

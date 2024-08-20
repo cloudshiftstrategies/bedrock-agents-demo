@@ -55,7 +55,7 @@ class BedrockAgentsStack(core.Stack):
                 directory=code_dir,
                 cmd=["cdk.functions.web_search.lambda_handler"],
                 platform=ecr.Platform.LINUX_AMD64,  # required when building on arm64 machines (mac m1)
-                exclude=prune_dir(keeps=["functions", "models"]),  # keeps updates smaller and faster
+                exclude=prune_dir(keeps=["functions", "models.py"]),  # keeps updates smaller and faster
             ),
             timeout=core.Duration.seconds(60),
             memory_size=1024,
