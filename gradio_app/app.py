@@ -1,16 +1,12 @@
-import json
 import os
-from typing import Any, Generator
+from typing import Generator
 import gradio as gr
 from dotenv import load_dotenv
-from gradio_app import helpers, kb, models  # cw_metrics,
+from gradio_app import helpers, models, kb, oauth_okta, middleware, fixes  # , cw_metrics
 
-# from authlib.integrations.starlette_client import OAuth, OAuthError
 from fastapi import FastAPI, Depends, Request
 from starlette.responses import RedirectResponse
-from starlette.middleware.sessions import SessionMiddleware
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.utilities import parameters
 import uvicorn
 
 logger = Logger(service="gradio_app")
@@ -66,13 +62,20 @@ def invoke_agent(prompt: str, chatbot: gr.Chatbot, trace=False, request: gr.Requ
         yield chatbot, "", request_dict, events
 
 
+def get_salutation(request: gr.Request) -> str:
+    return f"Welcome {request.username.get('name')}" if request.username else "Welcome"
+
+
 # This is the entire UI for the Gradio app below
 with gr.Blocks(title="Bedrock Agent Demo") as demo:
-    gr.Markdown("# Bedrock Agent Demo")
+    with gr.Row():  # Header
+        gr.Markdown("# Bedrock Agent Demo")
+        salutation = gr.Markdown("Welcome")
+        demo.load(get_salutation, outputs=salutation)
 
     with gr.Tab(label="Chat"):
         chatbot = gr.Chatbot(
-            type="messages",
+            type="messages",  # doesnt work in 4.20
             layout="panel",
             height=800,
             placeholder="Hello, how can I help you?",
@@ -89,48 +92,36 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
 
     with gr.Tab(label="KB"):
         gr.Markdown("Knowledge Base Articles")
-        file_list = gr.HTML(kb.get_kb_docs)  # List of KB documents in html table
-        kb_file = gr.File(label="Upload New Article")  # File uploader
-        with gr.Accordion(label="Ingestion Jobs", open=True):
-            refresh_jobs_btn = gr.Button("Refresh Ingestion Job List", variant="primary")  # Button to refresh jobs
-            ingestion_jobs = gr.DataFrame(kb.get_kb_ingestion_jobs)  # The ingestion jobs table
-        kb_file.upload(kb.upload_kb_doc, inputs=kb_file, outputs=file_list)  # Upload a new document to the KB
-        refresh_jobs_btn.click(kb.get_kb_ingestion_jobs, outputs=ingestion_jobs)  # Refresh jobs table when clicked
+        kb_refresh_btn = gr.Button("Refresh Knowledgebase Data", variant="primary")
+        kb_file_list = gr.HTML(visible=False)  # List of KB documents in html table
+        kb_uploader = gr.File(label="Upload New Article", visible=False)  # File uploader
+        kb_ingestion_jobs_list = gr.DataFrame(visible=False)  # The ingestion jobs table
+        kb_uploader.upload(kb.upload_kb_doc, inputs=kb_uploader, outputs=kb_file_list)
+        # dont load the kb data until the button is clicked
+        kb_refresh_btn.click(kb.get_kb_ingestion_jobs, outputs=kb_ingestion_jobs_list)
+        kb_refresh_btn.click(kb.get_kb_docs, outputs=kb_file_list)
+        kb_refresh_btn.click(
+            lambda: [gr.update(visible=True)] * 3, outputs=[kb_file_list, kb_uploader, kb_ingestion_jobs_list]
+        )
 
-    # with gr.Tab(label="Metrics"):
+    # with gr.Tab(label="Metrics"):  # TODO this is very slow
     #     gr.Markdown("Bedrock Metrics")
     #     for plot in cw_metrics.get_plots(helpers.BOTO.client("cloudwatch")):
     #         gr.Plot(plot)
 
-# Gradio will be mounted in the FastAPI app
-
-
-def get_user(request: Request):
-    return {"username": "demo"}
-
-
-app = FastAPI()
-if okta_secret_arn := os.getenv("OKTA_SECRET_ARN"):
-    logger.info(f"Getting Okta secret from {okta_secret_arn}")
-    okta_secret = json.loads(parameters.get_secret(okta_secret_arn))
-
-SECRET_KEY = okta_secret.get("SESSION_SECRET")
-# TODO remove this print statement
-logger.info(f"Session secret: {SECRET_KEY})")
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
-app = gr.mount_gradio_app(app, demo, path="/gradio", auth_dependency=get_user)
-
-# This Gradio app will be mounted at /login and doesn't require auth
-with gr.Blocks() as login:
-    gr.Button("Login", link="/login")
-app = gr.mount_gradio_app(app, login, path="/login")
+app = FastAPI()  # Gradio will be mounted in the FastAPI app as /gradio
+app = gr.mount_gradio_app(app, demo, path="/gradio", auth_dependency=oauth_okta.get_user)
+oauth_okta.init_okta(app)  # Configure the Okta OAuth2 authentication
+fixes.issue_7943(app)  # Apply the fixes for issue 7934
+app.add_middleware(middleware.XForwardedHostMiddleware)  # update host header using X-Forwarded-Host header
+app.add_middleware(middleware.LambdaRequestLogger)  # Log the incoming request
 
 
 @app.get("/")
-def public(user: dict = Depends(get_user)):
+def public(request: Request, user: dict = Depends(oauth_okta.get_user)):
+    """Public route to redirect to login if not authenticated"""
     return RedirectResponse(url="/gradio") if user else RedirectResponse(url="/login")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=8080)
-    # demo.launch(debug=True, server_port=8080, show_error=True)
+    uvicorn.run(app, port=int(os.environ.get("PORT", "8080")))

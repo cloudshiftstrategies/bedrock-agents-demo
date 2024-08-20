@@ -4,6 +4,10 @@ FROM public.ecr.aws/docker/library/python:3.11-slim
 COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.3 /lambda-adapter /opt/extensions/lambda-adapter
 # Reponse can be BUFFERED or RESPONSE_STREAM
 ENV AWS_LWA_INVOKE_MODE=RESPONSE_STREAM
+ENV AWS_LWA_PORT=8080
+ENV AWS_LWA_ASYNC_INIT="true"
+ENV AWS_LWA_ENABLE_COMPRESSION="true"
+
 
 # Configure the Lambda runtime environment
 ENV LAMBDA_TASK_ROOT=/var/task

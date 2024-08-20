@@ -1,0 +1,10 @@
+{
+  "hosted-zone:account=603006933259:domainName=css-lab1.epetersons.com:region=us-east-1": {
+    "Id": "/hostedzone/Z074554614TDENCAU9GII",
+    "Name": "css-lab1.epetersons.com."
+  },
+  "hosted-zone:account=603006933259:domainName=css-lab1.cloudshift.cc:region=us-east-1": {
+    "Id": "/hostedzone/Z01017081FFCM0BPWSACU",
+    "Name": "css-lab1.cloudshift.cc."
+  }
+}

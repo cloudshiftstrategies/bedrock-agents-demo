@@ -9,7 +9,10 @@ class BedrockDataStack(core.Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Create a Secret for Pinecone API key
         self.secret = pi.PineconeSecret(self, "PineconeApi").secret
+
         # Create a Secret for Okta credentials
         self.okta_secret = sm.Secret(
             self,
@@ -18,10 +21,10 @@ class BedrockDataStack(core.Stack):
             generate_secret_string=sm.SecretStringGenerator(
                 secret_string_template=json.dumps(
                     {
-                        "OKTA_OAUTH2_ CLIENT_ID": "CHANGE_ME",
+                        "OKTA_OAUTH2_CLIENT_ID": "CHANGE_ME",
                         "OKTA_OAUTH2_CLIENT_SECRET": "CHANGE_ME",
-                        "OKTA_OAUTH2_ISSUER": "CHANGE_ME",
-                        "SESSION_SECRET": "PASSWORD",
+                        "OKTA_OAUTH2_ISSUER": "https://DOMAIN.okta.com/oauth2",
+                        "SESSION_SECRET": "RANDOM_STRING",
                     }
                 ),
                 generate_string_key="SESSION_SECRET",
