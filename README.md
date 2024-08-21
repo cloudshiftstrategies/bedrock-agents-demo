@@ -104,3 +104,10 @@ Testing using bedrock, agents, knowledgebases etc to make an agent
    - Internal IT Knowledge base (CPT Office Hours)
    - Customer Service
    - ???
+
+## Archtecture
+
+![architecture](docs/architecture.png)
+
+## Ouath
+![ouath](docs/architecture-Ouath.drawio.png)

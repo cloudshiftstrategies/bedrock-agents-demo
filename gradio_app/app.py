@@ -94,16 +94,12 @@ with gr.Blocks(title="Bedrock Agent Demo") as demo:
     with gr.Tab(label="KB"):
         gr.Markdown("Knowledge Base Articles")
         kb_refresh_btn = gr.Button("Refresh Knowledgebase Data", variant="primary")
-        kb_file_list = gr.HTML(visible=False)  # List of KB documents in html table
-        kb_uploader = gr.File(label="Upload New Article", visible=False)  # File uploader
-        kb_ingestion_jobs_list = gr.DataFrame(visible=False)  # The ingestion jobs table
+        kb_file_list = gr.HTML(kb.get_kb_docs)  # List of KB documents in html table
+        kb_uploader = gr.File(label="Upload New Article")  # File uploader
+        kb_ingestion_jobs_list = gr.DataFrame(kb.get_kb_ingestion_jobs)  # The ingestion jobs table
         kb_uploader.upload(kb.upload_kb_doc, inputs=kb_uploader, outputs=kb_file_list)
-        # dont load the kb data until the button is clicked
         kb_refresh_btn.click(kb.get_kb_ingestion_jobs, outputs=kb_ingestion_jobs_list)
         kb_refresh_btn.click(kb.get_kb_docs, outputs=kb_file_list)
-        kb_refresh_btn.click(
-            lambda: [gr.update(visible=True)] * 3, outputs=[kb_file_list, kb_uploader, kb_ingestion_jobs_list]
-        )
 
     # with gr.Tab(label="Metrics"):  # TODO this is very slow
     #     gr.Markdown("Bedrock Metrics")

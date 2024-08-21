@@ -30,7 +30,7 @@ class BedrockAgentsStack(core.Stack):
             agent_model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         )
 
-        # Knowledge Base
+        # KnowledgeBase
         self.knowledge_base = BedrockPineconeKnowledgeBase(
             self,
             "BedrockDemoKb",

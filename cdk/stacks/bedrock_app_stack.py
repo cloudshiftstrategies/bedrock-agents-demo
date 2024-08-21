@@ -46,7 +46,7 @@ class BedrockAppStack(core.Stack):
                 platform=ecr.Platform.LINUX_AMD64,  # required when building on arm64 machines (mac m1)
             ),
             architecture=lambda_.Architecture.X86_64,
-            memory_size=8192,
+            memory_size=10240,
             timeout=core.Duration.minutes(5),
             environment={
                 "BEDROCK_AGENT_ID": br_agent_id,
