@@ -29,6 +29,8 @@ class BedrockAgentsStack(core.Stack):
             # Supported models https://docs.aws.amazon.com/bedrock/latest/userguide/agents-supported.html
             agent_model_id="anthropic.claude-3-sonnet-20240229-v1:0",
         )
+        # Enable code interpretation on the agent (uses custom resource)
+        self.bedrock_agent.add_code_interpretation()
 
         # KnowledgeBase
         self.knowledge_base = BedrockPineconeKnowledgeBase(
